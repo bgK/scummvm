@@ -42,7 +42,7 @@ static const RoomID kWSC62 = 62;
 class WSC : public Neighborhood {
 public:
 	WSC(InputHandler *, PegasusEngine *);
-	virtual ~WSC() {}
+	virtual ~WSC();
 
 	void flushGameState();
 
@@ -56,6 +56,8 @@ public:
 
 	bool canSolve();
 	void doSolve();
+
+	void setSoundFXLevel(const uint16);
 
 	virtual void prepareForAIHint(const Common::String &);
 	virtual void cleanUpAfterAIHint(const Common::String &);
@@ -126,6 +128,7 @@ protected:
 	void pickedUpItem(Item *);
 	void doorOpened();
 	void startExtraSequence(const ExtraID, const NotificationFlags, const InputBits);
+	void startDoorOpenMovie(const TimeValue, const TimeValue);
 	void getExtraEntry(const uint32, ExtraTable::Entry &);
 	void takeItemFromRoom(Item *item);
 	void checkPeopleCrossing();
@@ -137,6 +140,7 @@ protected:
 	void getExitCompassMove(const ExitTable::Entry &exitEntry, FaderMoveSpec &compassMove);
 	void getExtraCompassMove(const ExtraTable::Entry &entry, FaderMoveSpec &compassMove);
 	void bumpIntoWall();
+	void spotCompleted();
 	void activateHotspots();
 	void setUpAIRules();
 	Common::String getBriefingMovie();
@@ -153,12 +157,15 @@ protected:
 
 	FlagsArray<byte, kNumWSCPrivateFlags> _privateFlags;
 	const Hotspot *_cachedZoomSpot;
+	Hotspot _biotechImplantSpot;
+	Movie _extraMovie;
+	NotificationCallBack _extraMovieCallBack;
 	MoleculeBin _moleculeBin;
 	int32 _moleculeGameLevel, _numCorrect;
 	Movie _moleculesMovie;
 	uint32 _levelArray[6];
-	Common::Rational _energyDrainRate;
 	Sprite *_argonSprite;
+	Sound _welcomeSound;
 };
 
 } // End of namespace Pegasus

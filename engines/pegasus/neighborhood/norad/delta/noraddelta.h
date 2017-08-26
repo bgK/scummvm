@@ -90,6 +90,7 @@ protected:
 	virtual void arriveAt(const RoomID, const DirectionConstant);
 	void arriveAtNorad68West();
 	void arriveAtNorad79West();
+	void turnTo(const DirectionConstant);
 	TimeValue getViewTime(const RoomID, const DirectionConstant);
 	void openDoor();
 	void cantMoveThatWay(CanMoveForwardReason);

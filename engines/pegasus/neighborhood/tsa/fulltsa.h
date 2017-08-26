@@ -68,6 +68,9 @@ public:
 
 	void checkContinuePoint(const RoomID, const DirectionConstant);
 
+	void setSoundFXLevel(const uint16);
+	void setAmbienceLevel(const uint16);
+
 	bool canSolve();
 	void doSolve();
 
@@ -99,9 +102,11 @@ protected:
 	void downButton(const Input &);
 	void startDoorOpenMovie(const TimeValue, const TimeValue);
 	TimeValue getViewTime(const RoomID, const DirectionConstant);
+	void showViewFrame(TimeValue);
 	void findSpotEntry(const RoomID, const DirectionConstant, SpotFlags, SpotTable::Entry &);
 	void turnTo(const DirectionConstant);
 	CanMoveForwardReason canMoveForward(ExitTable::Entry &);
+	void moveForward();
 	CanOpenDoorReason canOpenDoor(DoorTable::Entry &);
 	void bumpIntoWall();
 	void initializeTBPMonitor(const int, const ExtraID);
@@ -109,10 +114,13 @@ protected:
 	void getExtraCompassMove(const ExtraTable::Entry &, FaderMoveSpec &);
 	Hotspot *getItemScreenSpot(Item *, DisplayElement *);
 	void openDoor();
+	void doorOpened();
 	void turnRight();
 	void turnLeft();
 	void closeDoorOffScreen(const RoomID, const DirectionConstant);
+	void startExtraSequence(const ExtraID, const NotificationFlags, const InputBits);
 	void playExtraMovie(const ExtraTable::Entry &, const NotificationFlags, const InputBits interruptionInput);
+	void startTurnPush(const TurnDirection, const TimeValue, const DirectionConstant);
 	void handleInput(const Input &, const Hotspot *);
 	void arriveAtTSA25Red();
 	void startUpComparisonMonitor();
@@ -141,6 +149,15 @@ protected:
 	void receiveNotification(Notification *, const NotificationFlags);
 	void checkRobotLocations(const RoomID, const DirectionConstant);
 	void getExtraEntry(const uint32, ExtraTable::Entry &);
+
+	Movie _extraMovie;
+	NotificationCallBack _extraMovieCallBack;
+	Movie _blankMovie;
+
+	Sound _entranceMusic;
+	SoundFader _entranceFader;
+	bool _playedSolvedMusicCue;
+	Sound _solvedMusicCue;
 
 	Sprite _sprite1, _sprite2, _sprite3;
 	FuseFunction _utilityFuse;

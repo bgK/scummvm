@@ -40,10 +40,16 @@
 
 namespace Pegasus {
 
+class CanyonChase;
 class InventoryItem;
 class Mars;
+class TunnelPod;
 
 enum MarsTimerCode {
+	kMarsPodCautionDisplayed,
+	kMarsPodCautionDismissed,
+	kMarsCanyonChaseExited,
+	kMarsCanyonChaseFaded,
 	kMarsLaunchTubeReached,
 	kMarsCanyonChaseFinished,
 	kMarsSpaceChaseFinished // Player ran out of time...
@@ -64,10 +70,14 @@ enum ShuttleWeaponSelection {
 };
 
 class Mars : public Neighborhood {
+friend class CanyonChase;
+friend class TunnelPod;
 friend struct MarsTimerEvent;
 public:
 	Mars(InputHandler *, PegasusEngine *);
 	virtual ~Mars();
+
+	virtual GameInteraction *makeInteraction(const InteractionID);
 
 	void flushGameState();
 
@@ -94,6 +104,7 @@ public:
 	void checkContinuePoint(const RoomID, const DirectionConstant);
 
 	void setSoundFXLevel(const uint16);
+	void setAmbienceLevel(const uint16);
 
 	bool canSolve();
 	void doSolve();
@@ -133,12 +144,16 @@ protected:
 	CanOpenDoorReason canOpenDoor(DoorTable::Entry &);
 	void openDoor();
 	void closeDoorOffScreen(const RoomID, const DirectionConstant);
+	void startDoorOpenMovie(const TimeValue, const TimeValue);
+	void startExitMovie(const ExitTable::Entry &);
 	int16 getStaticCompassAngle(const RoomID, const DirectionConstant);
 	void getExitCompassMove(const ExitTable::Entry &, FaderMoveSpec &);
 	void getExtraCompassMove(const ExtraTable::Entry &, FaderMoveSpec &);
 	void turnTo(const DirectionConstant);
+	void startExtraSequence(const ExtraID, const NotificationFlags, const InputBits);
 	void receiveNotification(Notification *, const NotificationFlags);
 	void doorOpened();
+	void startUpFromFinishedTunnelPod();
 	void setUpReactorEnergyDrain();
 	Hotspot *getItemScreenSpot(Item *, DisplayElement *);
 	void lockThawed();
@@ -170,6 +185,7 @@ protected:
 	void launchMaze136Robot();
 	void launchMaze184Robot();
 	void timerExpired(const uint32);
+	void showRobotAtReactor();
 	void spotCompleted();
 
 	void doCanyonChase(void);
@@ -178,12 +194,16 @@ protected:
 	void throwAwayMarsShuttle();
 	void startUpFromFinishedSpaceChase();
 	void startUpFromSpaceChase();
-	void transportToRobotShip();
+	void transportOutFromSpaceChase(bool);
 	void spaceChaseClick(const Input &, const HotSpotID);
 	void updateCursor(const Common::Point, const Hotspot *);
+	void playSpaceAmbient();
 
 	Common::String getSoundSpotsName();
 	Common::String getNavMovieName();
+
+	Movie _extraMovie;
+	NotificationCallBack _extraMovieCallBack;
 
 	InventoryItem *_attackingItem;
 	FuseFunction _bombFuse;
@@ -202,6 +222,8 @@ protected:
 	Picture _shuttleInterface3;
 	Picture _shuttleInterface4;
 	Movie _canyonChaseMovie;
+	Sound _musicLoop;
+	SoundFader _musicFader;
 
 	MarsTimerEvent _marsEvent;
 

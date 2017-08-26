@@ -66,6 +66,10 @@ bool PegasusEngine::isWindows() const {
 	return _gameDescription->desc.platform == Common::kPlatformWindows;
 }
 
+bool PegasusEngine::isLinux() const {
+	return _gameDescription->desc.platform == Common::kPlatformLinux;
+}
+
 } // End of namespace Pegasus
 
 static const PlainGameDescriptor pegasusGames[] = {
@@ -85,6 +89,53 @@ static const PegasusGameDescription gameDescriptions[] = {
 			Common::EN_ANY,
 			Common::kPlatformMacintosh,
 			ADGF_MACRESFORK,
+			GUIO0()
+		},
+	},
+
+	{
+		{
+			"pegasus",
+			"DVD",
+			AD_ENTRY1s("JMP PP Resources", "d13a602d2498010d720a6534f097f88b", 2075337),
+			Common::EN_ANY,
+			Common::kPlatformMacintosh,
+			ADGF_MACRESFORK|GF_DVD,
+			GUIO0()
+		},
+	},
+
+	{
+		{	"pegasus",
+			"DVD",
+			AD_ENTRY1s("JMP PP Resources", "d13a602d2498010d720a6534f097f88b", 2075337),
+			Common::EN_ANY,
+			Common::kPlatformWindows,
+			ADGF_MACRESFORK|GF_DVD,
+			GUIO0()
+		},
+	},
+
+	{
+		{
+			"pegasus",
+			"DVD",
+			AD_ENTRY1s("JMP PP Resources", "d13a602d2498010d720a6534f097f88b", 2075337),
+			Common::EN_ANY,
+			Common::kPlatformWindows,
+			ADGF_MACRESFORK|GF_DVD,
+			GUIO0()
+		},
+	},
+
+	{
+		{
+			"pegasus",
+			"DVD",
+			AD_ENTRY1s("JMP PP Resources", "d13a602d2498010d720a6534f097f88b", 2075337),
+			Common::EN_ANY,
+			Common::kPlatformLinux,
+			ADGF_MACRESFORK|GF_DVD,
 			GUIO0()
 		},
 	},
@@ -113,7 +164,7 @@ static const PegasusGameDescription gameDescriptions[] = {
 		},
 	},
 
-		{
+	{
 		{
 			"pegasus",
 			"DVD Demo",

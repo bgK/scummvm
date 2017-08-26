@@ -53,6 +53,7 @@
 #include "pegasus/ai/ai_area.h"
 #include "pegasus/items/itemlist.h"
 #include "pegasus/items/biochips/aichip.h"
+#include "pegasus/items/biochips/arthurchip.h"
 #include "pegasus/items/biochips/biochipitem.h"
 #include "pegasus/items/biochips/mapchip.h"
 #include "pegasus/items/biochips/opticalchip.h"
@@ -74,6 +75,10 @@
 #include "pegasus/neighborhood/tsa/tinytsa.h"
 #include "pegasus/neighborhood/wsc/wsc.h"
 
+#ifdef MACOSX
+#include <CoreServices/CoreServices.h>
+#endif
+
 namespace Pegasus {
 
 PegasusEngine::PegasusEngine(OSystem *syst, const PegasusGameDescription *gamedesc) : Engine(syst), InputHandler(0), _gameDescription(gamedesc),
@@ -94,11 +99,19 @@ PegasusEngine::PegasusEngine(OSystem *syst, const PegasusGameDescription *gamede
 	_idlerHead = 0;
 	_currentCD = 1;
 	_introTimer = 0;
+	_toggleRequested = false;
+	_chattyAI = true;
+	_chattyArthur = true;
 	_aiSaveStream = 0;
+	_heardOverviewVoice = false;
 }
 
 PegasusEngine::~PegasusEngine() {
 	throwAwayEverything();
+
+	if (isDVD()) {
+		Arthur.destroy();
+	}
 
 	delete _resFork;
 	delete _console;
@@ -264,9 +277,13 @@ void PegasusEngine::createItems() {
 void PegasusEngine::createItem(ItemID itemID, NeighborhoodID neighborhoodID, RoomID roomID, DirectionConstant direction) {
 	switch (itemID) {
 	case kInterfaceBiochip:
-		// Unused in game, but still in the data and we need to create
-		// it because it's saved/loaded from save files.
-		new BiochipItem(itemID, neighborhoodID, roomID, direction);
+		if (isDVD()) {
+			new ArthurChip(itemID, neighborhoodID, roomID, direction);
+		} else {
+			// Unused in game, but still in the data and we need to create
+			// it because it's saved/loaded from save files.
+			new BiochipItem(itemID, neighborhoodID, roomID, direction);
+		}
 		break;
 	case kAIBiochip:
 		new AIChip(itemID, neighborhoodID, roomID, direction);
@@ -336,10 +353,26 @@ void PegasusEngine::runIntro() {
 	if (shouldQuit() || skipped)
 		return;
 
+#ifdef USE_THEORADEC
+	if (isDVD() && Common::File::exists(_introDirectory + "/BigMovie_hq.ogg")) {
+		Video::TheoraDecoder hqVideo;
+		hqVideo.setSoundType(Audio::Mixer::kPlainSoundType);
+
+		if (hqVideo.loadFile(_introDirectory + "/BigMovie_hq.ogg")) {
+			hqVideo.start();
+			playMovieScaled(&hqVideo, 0, 0);
+			return;
+		}
+	}
+#endif
+
 	video = new Video::QuickTimeDecoder();
 
 	if (!video->loadFile(_introDirectory + "/Big Movie.movie"))
-		error("Could not load intro movie");
+		if (!video->loadFile(_introDirectory + "/BigMovie.movie"))
+			error("Could not load intro movie");
+
+	video->setVolume(MIN<uint>(getAmbienceLevel(), 0xFF));
 
 	video->setVolume(MIN<uint>(getAmbienceLevel(), 0xFF));
 
@@ -560,7 +593,14 @@ bool PegasusEngine::loadFromStream(Common::SeekableReadStream *stream) {
 		}
 	}
 
+	if (isDVD()) {
+		Arthur.resetArthurState();
+		_screenDimmer.hide();
+		_screenDimmer.stopDisplaying();
+	}
 	startNeighborhood();
+	if (g_arthurChip)
+		g_arthurChip->playArthurMovieForEvent("Images/AI/Globals/XGLOBB24", kArthurLoadedSavedGame);
 
 	// Make a new continue point if this isn't already one
 	if (saveType == kNormalSave)
@@ -795,9 +835,26 @@ void PegasusEngine::introTimerExpired() {
 
 		bool skipped = false;
 
-		Video::VideoDecoder *video = new Video::QuickTimeDecoder();
-		if (!video->loadFile(_introDirectory + "/LilMovie.movie"))
-			error("Failed to load little movie");
+		Video::VideoDecoder *video = 0;
+
+#ifdef USE_THEORADEC
+		if (isDVD()) {
+			video = new Video::TheoraDecoder();
+
+			if (!video->loadFile(_introDirectory + "/LilMovie_hq.ogg")) {
+				delete video;
+				video = 0;
+			}
+		}
+#endif
+
+		if (!video) {
+			video = new Video::QuickTimeDecoder();
+			if (!video->loadFile(_introDirectory + "/LilMovie.movie"))
+				error("Failed to load little movie");
+		}
+
+		video->setVolume(MIN<uint>(getAmbienceLevel(), 0xFF));
 
 		video->setVolume(MIN<uint>(getAmbienceLevel(), 0xFF));
 
@@ -895,6 +952,7 @@ void PegasusEngine::doGameMenuCommand(const GameMenuCommand command) {
 			_gfx->doFadeOutSync();
 			useMenu(new CreditsMenu());
 			_gfx->updateDisplay();
+			((CreditsMenu *)_gameMenu)->startCreditsMenuLoop();
 			_gfx->doFadeInSync();
 		}
 		break;
@@ -939,34 +997,103 @@ void PegasusEngine::doGameMenuCommand(const GameMenuCommand command) {
 				_gfx->updateDisplay();
 				_gfx->doFadeInSync();
 			} else {
+				Input input;
+				if (isDVD()) {
+					InputDevice.getInput(input, kFilterAllInput);
+					if (JMPPPInput::isEasterEggModifierInput(input))
+						GameState.setEasterEgg(true);
+				}
+
 				_gfx->doFadeOutSync();
 				useMenu(0);
 				_gfx->enableErase();
 				_gfx->updateDisplay();
 				_gfx->disableErase();
 
-				Video::VideoDecoder *video = new Video::QuickTimeDecoder();
-				if (!video->loadFile(_introDirectory + "/Closing.movie"))
-					error("Could not load closing movie");
+				Video::VideoDecoder *video = 0;
+				if (GameState.getEasterEgg()) {
+#ifdef USE_THEORADEC
+					video = new Video::TheoraDecoder();
+					if (!video->loadFile(_introDirectory + "/Closing_hq2.ogg")) {
+						delete video;
+						video = 0;
+					}
+#endif
+					if (!video) {
+						video = new Video::QuickTimeDecoder();
+						if (!video->loadFile(_introDirectory + "/Closing2.movie"))
+							error("Could not load alternate closing movie");
+					}
+				} else {
+#ifdef USE_THEORADEC
+					video = new Video::TheoraDecoder();
+					if (!video->loadFile(_introDirectory + "/Closing_hq1.ogg")) {
+						delete video;
+						video = 0;
+					}
+#endif
+					if (!video) {
+						video = new Video::QuickTimeDecoder();
+						if (!video->loadFile(_introDirectory + "/Closing.movie"))
+							error("Could not load closing movie");
+					}
+				}
 
 				video->setVolume(MIN<uint>(getSoundFXLevel(), 0xFF));
 
-				uint16 x = (640 - video->getWidth() * 2) / 2;
-				uint16 y = (480 - video->getHeight() * 2) / 2;
+				uint16 newHeight = (uint16)((640.0f / (float)video->getWidth()) * (float)video->getHeight());
+				uint16 x = 0;
+				uint16 y = (480 - newHeight) / 2;
 
 				video->start();
-				playMovieScaled(video, x, y);
+				bool interrupted = playMovieScaled(video, x, y);
 
 				delete video;
+
+				if (isDVD() && !interrupted) {
+					// Display new post credits movie
+#ifdef USE_THEORADEC
+					video = new Video::TheoraDecoder();
+					if (!video->loadFile(_introDirectory + "/Closing_hq3.ogg")) {
+						delete video;
+						video = 0;
+					}
+#endif
+					if (!video) {
+						video = new Video::QuickTimeDecoder();
+						if (!video->loadFile(_introDirectory + "/Closing3.movie"))
+							error("Could not load closing 3 movie");
+					}
+
+					video->setVolume(MIN<uint>(getSoundFXLevel(), 0xFF));
+
+					video->start();
+					interrupted = playMovieScaled(video, 0, 0);
+					delete video;
+				}
 
 				if (shouldQuit())
 					return;
 
-				useMenu(new MainMenu());
-				_gfx->updateDisplay();
-				((MainMenu *)_gameMenu)->startMainMenuLoop();
-				_gfx->doFadeInSync();
-				resetIntroTimer();
+				if (isDVD()) {
+					useMenu(new CreditsMenu());
+					_gfx->updateDisplay();
+					((CreditsMenu *)_gameMenu)->startCreditsMenuLoop();
+					if (!interrupted)
+						_gfx->doFadeInSync();
+					else
+						_gfx->enableUpdates();
+				} else {
+					useMenu(new MainMenu());
+					_gfx->updateDisplay();
+					((MainMenu *)_gameMenu)->startMainMenuLoop();
+					if (!interrupted)
+						_gfx->doFadeInSync();
+					else
+						_gfx->enableUpdates();
+					resetIntroTimer();
+				}
+				GameState.setEasterEgg(false);
 			}
 		} else {
 			loadFromContinuePoint();
@@ -1105,6 +1232,8 @@ void PegasusEngine::doInterfaceOverview() {
 		Common::Rect(542, 36, 542 + 58, 36 + 20)
 	};
 
+	static const Common::Rect hiddenSpot = Common::Rect(595, 417, 595 + 4, 417 + 5);
+
 	_gfx->doFadeOutSync();
 	useMenu(0);
 
@@ -1143,7 +1272,18 @@ void PegasusEngine::doInterfaceOverview() {
 	controllerHighlight.startDisplaying();
 
 	Movie overviewText(kNoDisplayElement);
-	overviewText.initFromMovieFile("Images/Interface/Overview Mac.movie");
+
+	if (isDVD()) {
+		if (isLinux() && Common::File::exists("Images/Interface/Overview Linux.movie"))
+			overviewText.initFromMovieFile("Images/Interface/Overview Linux.movie");
+		else if (isLinux() || isWindows())
+			overviewText.initFromMovieFile("Images/Interface/Overview PC.movie");
+		else
+			overviewText.initFromMovieFile("Images/Interface/Overview ScummVM.movie");
+	} else {
+		overviewText.initFromMovieFile("Images/Interface/Overview Mac.movie");
+	}
+
 	overviewText.setDisplayOrder(0);
 	overviewText.moveElementTo(kNavAreaLeft, kNavAreaTop);
 	overviewText.startDisplaying();
@@ -1179,6 +1319,10 @@ void PegasusEngine::doInterfaceOverview() {
 	if (time == 2) {
 		highlight.hide();
 		controllerHighlight.show();
+
+		// Hidden message in the DVD version
+		if (isDVD() && hiddenSpot.contains(cursorLoc))
+			time = 12;
 	} else if (i != kNumOverviewSpots) {
 		controllerHighlight.hide();
 		Common::Rect r = overviewSpots[i];
@@ -1198,6 +1342,28 @@ void PegasusEngine::doInterfaceOverview() {
 
 	_gfx->updateDisplay();
 	_gfx->doFadeInSync();
+
+	Sound overviewVoice, overviewMusic;
+	SoundFader overviewMusicFader;
+
+	// In the DVD version, play the voice and some background sound
+	if (isDVD()) {
+		if (!_heardOverviewVoice) {
+			_heardOverviewVoice = true;
+			overviewVoice.initFromAIFFFile("Sounds/Overview.aiff");
+			overviewVoice.setVolume(getSoundFXLevel());
+			overviewVoice.playSound();
+		}
+
+		overviewMusic.attachFader(&overviewMusicFader);
+		overviewMusic.initFromAIFFFile("Sounds/TSA/T01NAE.NEW.32K.AIFF");
+		overviewMusicFader.setMasterVolume(getAmbienceLevel());
+		overviewMusic.loopSound();
+
+		FaderMoveSpec spec;
+		spec.makeTwoKnotFaderSpec(30, 0, 0, 30, 255);
+		overviewMusicFader.startFaderSync(spec);
+	}
 
 	for (;;) {
 		InputDevice.getInput(input, kFilterAllInput);
@@ -1220,6 +1386,10 @@ void PegasusEngine::doInterfaceOverview() {
 		if (time == 2) {
 			highlight.hide();
 			controllerHighlight.show();
+
+			// Hidden message in the DVD version
+			if (isDVD() && hiddenSpot.contains(cursorLoc))
+				time = 12;
 		} else if (i != kNumOverviewSpots) {
 			controllerHighlight.hide();
 			Common::Rect r = overviewSpots[i];
@@ -1247,6 +1417,16 @@ void PegasusEngine::doInterfaceOverview() {
 
 	highlight.hide();
 	_cursor->hide();
+
+	// Make sure we cut off the music and sound
+	overviewVoice.stopSound();
+
+	if (overviewMusic.isPlaying()) {
+		FaderMoveSpec spec;
+		spec.makeTwoKnotFaderSpec(30, 0, 255, 30, 0);
+		overviewMusicFader.startFaderSync(spec);
+		overviewMusic.stopSound();
+	}
 
 	_gfx->doFadeOutSync();
 	useMenu(new MainMenu());
@@ -1400,6 +1580,40 @@ void PegasusEngine::cleanUpAfterAIHint(const Common::String &movieName) {
 		g_neighborhood->cleanUpAfterAIHint(movieName);
 }
 
+void PegasusEngine::setChattyAI(bool flag) {
+	_chattyAI = flag;
+
+	if (g_arthurChip)
+		g_arthurChip->setUpArthurChip();
+
+	if (g_AIArea) {
+		if (flag) {
+			g_AIArea->playAIMovie(kRightAreaSignature, "Images/AI/Globals/XGLOB01", false, kHintInterruption);
+		} else {
+			g_AIArea->playAIMovie(kRightAreaSignature, "Images/AI/Globals/XGLOB00", false, kHintInterruption);
+			if (g_arthurChip)
+				g_arthurChip->playArthurMovieForEvent("Images/AI/Globals/XGLOBB29", kArthurDisabledAI);
+		}
+	}
+}
+
+void PegasusEngine::setChattyArthur(bool flag) {
+	_chattyArthur = flag;
+
+	if (g_arthurChip) {
+		g_arthurChip->setUpArthurChip();
+
+		if (flag) {
+			if (getRandomBit())
+				g_arthurChip->playArthurMovie("Images/AI/Globals/XGLOBAA1");
+			else
+				g_arthurChip->playArthurMovie("Images/AI/Globals/XGLOBAA2");
+		} else {
+			g_arthurChip->playArthurMovie("Images/AI/Globals/XGLOBAA0");
+		}
+	}
+}
+
 void PegasusEngine::jumpToNewEnvironment(const NeighborhoodID neighborhoodID, const RoomID roomID, const DirectionConstant direction) {
 	GameState.setNextLocation(neighborhoodID, roomID, direction);
 	_shellNotification.setNotificationFlags(kNeedNewJumpFlag, kNeedNewJumpFlag);
@@ -1412,6 +1626,8 @@ void PegasusEngine::checkFlashlight() {
 
 bool PegasusEngine::playMovieScaled(Video::VideoDecoder *video, uint16 x, uint16 y) {
 	bool skipped = false;
+
+	assert(video->isPlaying());
 
 	while (!shouldQuit() && !video->endOfVideo() && !skipped) {
 		if (video->needsUpdate()) {
@@ -1466,6 +1682,7 @@ void PegasusEngine::doDeath() {
 	useMenu(new DeathMenu(_deathReason));
 	_gfx->updateDisplay();
 	_gfx->doFadeInSync();
+	_deathReason = kDeathStranded;
 }
 
 void PegasusEngine::throwAwayEverything() {
@@ -1496,9 +1713,9 @@ InputBits PegasusEngine::getInputFilter() {
 }
 
 void PegasusEngine::processShell() {
-	checkCallBacks();
 	checkNotifications();
 	InputHandler::pollForInput();
+	checkCallBacks();
 	refreshDisplay();
 }
 
@@ -1638,6 +1855,8 @@ void PegasusEngine::performJump(NeighborhoodID neighborhoodID) {
 }
 
 void PegasusEngine::startNeighborhood() {
+	GameState.setEasterEgg(false);
+
 	if (g_interface && _currentItemID != kNoItemID)
 		g_interface->setCurrentInventoryItemID(_currentItemID);
 
@@ -1657,6 +1876,8 @@ void PegasusEngine::startNewGame() {
 	bool isWalkthrough = GameState.getWalkthroughMode();
 	GameState.resetGameState();
 	GameState.setWalkthroughMode(isWalkthrough);
+	if (isDVD())
+		Arthur.resetArthurState();
 
 	_gfx->doFadeOutSync();
 	useMenu(0);
@@ -1694,6 +1915,9 @@ void PegasusEngine::startNewGame() {
 
 	removeAllItemsFromInventory();
 	removeAllItemsFromBiochips();
+
+	// Properly reset all items to their original state
+	g_allItems.resetAllItems();
 
 	// Properly reset all items to their original state
 	g_allItems.resetAllItems();
@@ -1940,12 +2164,12 @@ void PegasusEngine::dragTerminated(const Input &) {
 			delete _draggingSprite;
 	} else if (_dragType == kDragInventoryUse) {
 		if (finalSpot && (finalSpot->getHotspotFlags() & kDropItemSpotFlag) != 0) {
+			delete _draggingSprite;
 			// *** Need to decide on a case by case basis what to do here.
 			// the crowbar should break the cover off the Mars reactor if its frozen, the
 			// global transport card should slide through the slot, the oxygen mask should
 			// attach to the filling station, and so on...
 			_neighborhood->dropItemIntoRoom(_draggingItem, finalSpot);
-			delete _draggingSprite;
 		} else {
 			autoDragItemIntoInventory(_draggingItem, _draggingSprite);
 		}
@@ -2194,9 +2418,9 @@ void PegasusEngine::autoDragItemIntoRoom(Item *item, Sprite *draggingSprite) {
 		_system->delayMillis(10);
 	}
 
+	delete _draggingSprite;
 	_neighborhood->dropItemIntoRoom(_draggingItem, dropSpot);
 	allowInput(true);
-	delete _draggingSprite;
 
 	if (g_AIArea)
 		g_AIArea->unlockAI();
@@ -2228,9 +2452,9 @@ void PegasusEngine::autoDragItemIntoInventory(Item *, Sprite *draggingSprite) {
 		_system->delayMillis(10);
 	}
 
+	delete _draggingSprite;
 	addItemToInventory((InventoryItem *)_draggingItem);
 	allowInput(true);
-	delete _draggingSprite;
 
 	if (g_AIArea)
 		g_AIArea->unlockAI();
@@ -2295,8 +2519,14 @@ void PegasusEngine::doSubChase() {
 		if (video->needsUpdate()) {
 			const Graphics::Surface *frame = video->decodeNextFrame();
 
-			if (frame)
-				drawScaledFrame(frame, 0, 0);
+			if (frame) {
+				if (frame->w <= 320 && frame->h <= 240) {
+					drawScaledFrame(frame, 0, 0);
+				} else {
+					_system->copyRectToScreen((const byte *)frame->getPixels(), frame->pitch, 0, 0, frame->w, frame->h);
+					_system->updateScreen();
+				}
+			}
 		}
 
 		InputDevice.pumpEvents();
@@ -2395,6 +2625,8 @@ void PegasusEngine::destroyInventoryItem(const ItemID itemID) {
 	g_interface->setCurrentInventoryItemID(itemID);
 	g_AIArea->playAIAreaSequence(kInventorySignature, kMiddleAreaSignature, entry.extraStart, entry.extraStop);
 	removeItemFromInventory(item);
+	if (g_arthurChip)
+		g_arthurChip->playArthurMovieForEvent("Images/AI/Globals/XGLOBA26", kArthurDestroyedInventoryItem);
 }
 
 ItemID PegasusEngine::pickItemToDestroy() {

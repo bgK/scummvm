@@ -616,7 +616,8 @@ Other contributions
      Janne Huttunen               - V3 actor mask support, Dig/FT SMUSH audio
      Kovacs Endre Janos           - Several fixes for Simon1
      Jeroen Janssen               - Numerous readability and bugfix patches
-     Keith Kaisershot             - Several Pegasus Prime patches
+     Keith Kaisershot             - Several Pegasus Prime patches and DVD
+                                    additions
      Andreas Karlsson             - Initial port for SymbianOS
      Stefan Kristiansson          - Initial work on SDL2 support
      Claudio Matsuoka             - Daily Linux builds

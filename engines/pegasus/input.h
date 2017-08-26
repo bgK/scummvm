@@ -59,6 +59,7 @@ protected:
 	Common::HashMap<uint, bool> _keyMap;
 	InputBits _lastRawBits;
 	bool _consoleRequested;
+	bool _AKeyWasDown;
 };
 
 enum {
@@ -280,7 +281,7 @@ enum {
 };
 
 static const InputBits kHintInterruption = kFilterAllInputNoAuto;
-static const InputBits kWarningInterruption = kFilterNoInput;
+static const InputBits kWarningInterruption = kFilterAllInputNoAuto;
 static const InputBits kOpticalInterruption = kFilterAllInputNoAuto;
 
 /*
@@ -483,7 +484,7 @@ public:
 
 	static bool isRaiseInventoryInput(const Input &input) { return input.leftFireButtonDown(); }
 	static bool isRaiseBiochipsInput(const Input &input) { return input.rightFireButtonDown(); }
-	static InputBits getItemPanelsInputFilter() { return kFilterLeftFireButton | kFilterRightFireButton; }
+	static InputBits getItemPanelsInputFilter() { return kFilterFourButton | kFilterLeftFireButton | kFilterRightFireButton; }
 
 	static bool isToggleAIMiddleInput(const Input &input) { return input.threeButtonDown(); }
 
