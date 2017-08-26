@@ -99,6 +99,7 @@ public:
 	bool isDVDDemo() const;
 	bool isOldDemo() const;
 	bool isWindows() const;
+	bool isLinux() const;
 	void addIdler(Idler *idler);
 	void removeIdler(Idler *idler);
 	void addTimeBase(TimeBase *timeBase);
@@ -124,10 +125,12 @@ public:
 	int32 getSavedEnergyValue() { return _savedEnergyValue; }
 
 	// Death
+	Sound &getDeathSound() { return _deathSound; }
 	void setEnergyDeathReason(const DeathReason reason) { _deathReason = reason; }
 	DeathReason getEnergyDeathReason() { return _deathReason; }
 	void resetEnergyDeathReason();
 	void die(const DeathReason);
+	DeathReason getDeathReason() { return _deathReason; }
 	void playEndMessage();
 
 	// Volume
@@ -169,6 +172,12 @@ public:
 	bool canSolve();
 	void prepareForAIHint(const Common::String &);
 	void cleanUpAfterAIHint(const Common::String &);
+	void requestToggle(bool request = true) { _toggleRequested = request; }
+	bool toggleRequested() const { return _toggleRequested; }
+	bool isChattyAI() { return _chattyAI; }
+	void setChattyAI(bool);
+	bool isChattyArthur() { return _chattyArthur; }
+	void setChattyArthur(bool);
 	Common::SeekableReadStream *_aiSaveStream;
 
 	// Neighborhood
@@ -281,13 +290,20 @@ private:
 	void doInterfaceOverview();
 	ScreenDimmer _screenDimmer;
 	void pauseMenu(bool menuUp);
+	bool _heardOverviewVoice;
 
 	// Energy
 	int32 _savedEnergyValue;
 
 	// Death
 	DeathReason _deathReason;
+	Sound _deathSound;
 	void doDeath();
+
+	// AI
+	bool _toggleRequested;
+	bool _chattyAI;
+	bool _chattyArthur;
 
 	// Neighborhood
 	Neighborhood *_neighborhood;

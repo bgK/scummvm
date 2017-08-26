@@ -67,10 +67,12 @@ InputDeviceManager::InputDeviceManager() {
 	_keyMap[Common::KEYCODE_RALT] = false;
 	_keyMap[Common::KEYCODE_e] = false;
 	_keyMap[Common::KEYCODE_KP_ENTER] = false;
+	_keyMap[Common::KEYCODE_a] = false;
 
 	g_system->getEventManager()->getEventDispatcher()->registerObserver(this, 2, false);
 	_lastRawBits = kAllUpBits;
 	_consoleRequested = false;
+	_AKeyWasDown = false;
 }
 
 InputDeviceManager::~InputDeviceManager() {
@@ -78,16 +80,29 @@ InputDeviceManager::~InputDeviceManager() {
 }
 
 void InputDeviceManager::getInput(Input &input, const InputBits filter) {
-	// Poll for events, but ignore them!
-	// We'll pick them up in notifyEvent()
+	// Poll for events, but ignore most of them!
+	// We'll pick the rest up in notifyEvent()
 	// We do that so that any pollEvent() call can update the variables
 	// (ie. if one uses enter to access the restore menu, we never receive
 	// the key up event, which leads to bad things)
 	// This is to closely emulate what the GetKeys() function did on Mac OS
-	pumpEvents();
-
-	// Now create the bitfield
 	InputBits currentBits = 0;
+
+	Common::Event event;
+	while (g_system->getEventManager()->pollEvent(event)) {
+		switch (event.type) {
+			case Common::EVENT_WHEELUP:
+				currentBits |= (kRawButtonDown << kUpButtonShift);
+				break;
+			case Common::EVENT_WHEELDOWN:
+				currentBits |= (kRawButtonDown << kDownButtonShift);
+				break;
+			default:
+				break;
+		}
+	}
+
+	// Now fill in the rest of the bitfield
 
 	if (_keyMap[Common::KEYCODE_UP] || _keyMap[Common::KEYCODE_KP8])
 		currentBits |= (kRawButtonDown << kUpButtonShift);
@@ -130,6 +145,14 @@ void InputDeviceManager::getInput(Input &input, const InputBits filter) {
 
 	if (_keyMap[Common::KEYCODE_BACKSPACE] || _keyMap[Common::KEYCODE_KP_MULTIPLY] || _keyMap[Common::KEYCODE_KP9])
 		currentBits |= (kRawButtonDown << kRightFireButtonShift);
+
+	if (((PegasusEngine *)g_engine)->isDVD()) {
+		if (_keyMap[Common::KEYCODE_a] && (_keyMap[Common::KEYCODE_LALT] || _keyMap[Common::KEYCODE_RALT]) && !_AKeyWasDown) {
+			((PegasusEngine *)g_engine)->requestToggle();
+			_AKeyWasDown = true;
+		} else if (!_keyMap[Common::KEYCODE_a])
+			_AKeyWasDown = false;
+	}
 
 	// Update mouse button state
 	// Note that we don't use EVENT_LBUTTONUP/EVENT_LBUTTONDOWN because
