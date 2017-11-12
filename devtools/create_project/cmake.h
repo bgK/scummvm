@@ -34,7 +34,8 @@ namespace CreateProjectTool {
  */
 class CMakeProvider : public ProjectProvider {
 public:
-	CMakeProvider(StringList &global_warnings, std::map<std::string, StringList> &project_warnings, const int version = 0);
+	CMakeProvider(StringList &global_warnings, std::map<std::string, StringList> &project_warnings,
+	              StringList &msvc_global_warnings, std::map<std::string, StringList> &msvc_project_warnings, const int version = 0);
 
 protected:
 
@@ -53,6 +54,9 @@ protected:
 	const char *getProjectExtension();
 
 private:
+	StringList &_msvcGlobalWarnings;                             ///< Global warnings
+	std::map<std::string, StringList> &_msvcProjectWarnings;     ///< Per-project warnings
+
 	enum SDLVersion {
 		kSDLVersionAny,
 		kSDLVersion1,

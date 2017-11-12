@@ -30,8 +30,11 @@
 
 namespace CreateProjectTool {
 
-CMakeProvider::CMakeProvider(StringList &global_warnings, std::map<std::string, StringList> &project_warnings, const int version)
-	: ProjectProvider(global_warnings, project_warnings, version) {
+CMakeProvider::CMakeProvider(StringList &global_warnings, std::map<std::string, StringList> &project_warnings,
+                             StringList &msvc_global_warnings, std::map<std::string, StringList> &msvc_project_warnings, const int version)
+	: ProjectProvider(global_warnings, project_warnings, version),
+	_msvcGlobalWarnings(msvc_global_warnings),
+	_msvcProjectWarnings(msvc_project_warnings) {
 }
 
 const CMakeProvider::Library *CMakeProvider::getLibraryFromFeature(const char *feature, bool useSDL2) const {
@@ -192,6 +195,18 @@ void CMakeProvider::createProjectFile(const std::string &name, const std::string
 
 
 	project << ")\n";
+
+	const StringList &msvcProjectWarnings = _msvcProjectWarnings[name];
+	if (!msvcProjectWarnings.empty()) {
+		project << "if (MSVC)\n";
+		project << "    target_compile_options(" << name << " PRIVATE";
+		for (StringList::const_iterator i = msvcProjectWarnings.begin(); i != msvcProjectWarnings.end(); ++i) {
+			project << " /wd" << *i;
+		}
+		project << ")\n";
+		project << "endif()\n";
+	}
+
 	if (name != setup.projectName) {
 		project << "endif()\n";
 	}
@@ -210,12 +225,21 @@ void CMakeProvider::createProjectFile(const std::string &name, const std::string
 			if (library->librariesVar) {
 				project << "target_link_libraries(" << name << " ${" << library->librariesVar << "})\n";
 			} else {
-				project << "target_link_libraries(" << name << " " << library->libraries << ")\n";
+				project << "if (MSVC)\n";
+				project << "    target_link_libraries(" << name << " " << i->libraries << ")\n";
+				project << "else()\n";
+				project << "    target_link_libraries(" << name << " " << library->libraries << ")\n";
+				project << "endif()\n";
 			}
 		}
 		project << "if (WIN32)\n";
 		project << "    target_sources(" << name << " PUBLIC " << setup.filePrefix << "/dists/" << name << ".rc)\n";
 		project << "    target_link_libraries(" << name << " winmm)\n";
+		project << "endif()\n";
+		project << "\n";
+
+		project << "if (MSVC)\n";
+		project << "    SET(CMAKE_EXE_LINKER_FLAGS \"${CMAKE_EXE_LINKER_FLAGS} /subsystem:console /ENTRY:WinMainCRTStartup\")\n";
 		project << "endif()\n";
 		project << "\n";
 
@@ -228,11 +252,19 @@ void CMakeProvider::createProjectFile(const std::string &name, const std::string
 }
 
 void CMakeProvider::writeWarnings(std::ofstream &output) const {
+	output << "if (MSVC)\n";
+	output << "SET (CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS}";
+	for (StringList::const_iterator i = _msvcGlobalWarnings.begin(); i != _msvcGlobalWarnings.end(); ++i) {
+		output << " /wd" << *i;
+	}
+	output << "\")\n";
+	output << "else()\n";
 	output << "SET (CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS}";
 	for (StringList::const_iterator i = _globalWarnings.begin(); i != _globalWarnings.end(); ++i) {
 		output << " " << *i;
 	}
 	output << "\")\n";
+	output << "endif()\n";
 }
 
 void CMakeProvider::writeDefines(const BuildSetup &setup, std::ofstream &output) const {

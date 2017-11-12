@@ -21,3 +21,6 @@ set(SOURCE_FILES
 
 add_executable(create_project ${SOURCE_FILES})
 
+if(MSVC)
+	target_link_libraries(create_project rpcrt4.lib)
+endif()

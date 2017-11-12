@@ -91,6 +91,7 @@ void displayHelp(const char *exe);
  * @param globalWarnings Resulting list of warnings
  */
 void addGCCWarnings(StringList &globalWarnings);
+void addMSVCWarnings(StringList &globalWarnings, std::map<std::string, StringList> &projectWarnings, int msvcVersion);
 } // End of anonymous namespace
 
 enum ProjectType {
@@ -436,8 +437,11 @@ int main(int argc, char *argv[]) {
 	// disable certain warnings (and some other not warning related flags
 	// actually...). While in MSVC this is solely for disabling warnings.
 	// That is really not nice. We should consider a nicer way of doing this.
-	StringList globalWarnings;
-	std::map<std::string, StringList> projectWarnings;
+	StringList gccGlobalWarnings, msvcGlobalWarnings;
+	std::map<std::string, StringList> gccProjectWarnings, msvcProjectWarnings;
+
+	addGCCWarnings(gccGlobalWarnings);
+	addMSVCWarnings(msvcGlobalWarnings, msvcProjectWarnings, msvcVersion);
 
 	CreateProjectTool::ProjectProvider *provider = NULL;
 
@@ -453,9 +457,8 @@ int main(int argc, char *argv[]) {
 			return -1;
 		}
 
-		addGCCWarnings(globalWarnings);
-
-		provider = new CreateProjectTool::CMakeProvider(globalWarnings, projectWarnings);
+		provider = new CreateProjectTool::CMakeProvider(gccGlobalWarnings, gccProjectWarnings,
+		                                                msvcGlobalWarnings, msvcProjectWarnings);
 
 		break;
 
@@ -465,9 +468,7 @@ int main(int argc, char *argv[]) {
 			return -1;
 		}
 
-		addGCCWarnings(globalWarnings);
-
-		provider = new CreateProjectTool::CodeBlocksProvider(globalWarnings, projectWarnings);
+		provider = new CreateProjectTool::CodeBlocksProvider(gccGlobalWarnings, gccProjectWarnings);
 
 
 		// Those libraries are automatically added by MSVC, but we need to add them manually with mingw
@@ -477,135 +478,11 @@ int main(int argc, char *argv[]) {
 		break;
 
 	case kProjectMSVC:
-		////////////////////////////////////////////////////////////////////////////
-		// For Visual Studio, all warnings are on by default in the project files,
-		// so we pass a list of warnings to disable globally or per-project
-		//
-		// Tracker reference:
-		// https://sourceforge.net/tracker/?func=detail&aid=2909981&group_id=37116&atid=418822
-		////////////////////////////////////////////////////////////////////////////
-		//
-		// 4068 (unknown pragma)
-		//   only used in scumm engine to mark code sections
-		//
-		// 4100 (unreferenced formal parameter)
-		//
-		// 4103 (alignment changed after including header, may be due to missing #pragma pack(pop))
-		//   used by pack-start / pack-end
-		//
-		// 4127 (conditional expression is constant)
-		//   used in a lot of engines
-		//
-		// 4244 ('conversion' conversion from 'type1' to 'type2', possible loss of data)
-		//   throws tons and tons of warnings, most of them false positives
-		//
-		// 4250 ('class1' : inherits 'class2::member' via dominance)
-		//   two or more members have the same name. Should be harmless
-		//
-		// 4267 ('var' : conversion from 'size_t' to 'type', possible loss of data)
-		//   throws tons and tons of warnings (no immediate plan to fix all usages)
-		//
-		// 4310 (cast truncates constant value)
-		//   used in some engines
-		//
-		// 4345 (behavior change: an object of POD type constructed with an
-		// initializer of the form () will be default-initialized)
-		//   used in Common::Array(), and it basically means that newer VS
-		//   versions adhere to the standard in this case. Can be safely
-		//   disabled.
-		//
-		// 4351 (new behavior: elements of array 'array' will be default initialized)
-		//   a change in behavior in Visual Studio 2005. We want the new behavior, so it can be disabled
-		//
-		// 4512 ('class' : assignment operator could not be generated)
-		//   some classes use const items and the default assignment operator cannot be generated
-		//
-		// 4577 ('noexcept' used with no exception handling mode specified)
-		//
-		// 4702 (unreachable code)
-		//   mostly thrown after error() calls (marked as NORETURN)
-		//
-		// 4706 (assignment within conditional expression)
-		//   used in a lot of engines
-		//
-		// 4800 ('type' : forcing value to bool 'true' or 'false' (performance warning))
-		//
-		// 4996 ('function': was declared deprecated)
-		//   disabling it removes all the non-standard unsafe functions warnings (strcpy_s, etc.)
-		//
-		// 6211 (Leaking memory <pointer> due to an exception. Consider using a local catch block to clean up memory)
-		//   we disable exceptions
-		//
-		// 6204 (possible buffer overrun in call to <function>: use of unchecked parameter <variable>)
-		// 6385 (invalid data: accessing <buffer name>, the readable size is <size1> bytes, but <size2> bytes may be read)
-		// 6386 (buffer overrun: accessing <buffer name>, the writable size is <size1> bytes, but <size2> bytes may be written)
-		//   give way too many false positives
-		//
-		////////////////////////////////////////////////////////////////////////////
-		//
-		// 4189 (local variable is initialized but not referenced)
-		//   false positive in lure engine
-		//
-		// 4355 ('this' : used in base member initializer list)
-		//   only disabled for specific engines where it is used in a safe way
-		//
-		// 4373 (previous versions of the compiler did not override when parameters only differed by const/volatile qualifiers)
-		//
-		// 4510 ('class' : default constructor could not be generated)
-		//
-		// 4511 ('class' : copy constructor could not be generated)
-		//
-		// 4610 (object 'class' can never be instantiated - user-defined constructor required)
-		//   "correct" but harmless (as is 4510)
-		//
-		////////////////////////////////////////////////////////////////////////////
-
-		globalWarnings.push_back("4068");
-		globalWarnings.push_back("4100");
-		globalWarnings.push_back("4103");
-		globalWarnings.push_back("4127");
-		globalWarnings.push_back("4244");
-		globalWarnings.push_back("4250");
-		globalWarnings.push_back("4310");
-		globalWarnings.push_back("4345");
-		globalWarnings.push_back("4351");
-		globalWarnings.push_back("4512");
-		globalWarnings.push_back("4702");
-		globalWarnings.push_back("4706");
-		globalWarnings.push_back("4800");
-		globalWarnings.push_back("4996");
-		globalWarnings.push_back("6204");
-		globalWarnings.push_back("6211");
-		globalWarnings.push_back("6385");
-		globalWarnings.push_back("6386");
-
-		if (msvcVersion == 14 || msvcVersion == 15) {
-			globalWarnings.push_back("4267");
-			globalWarnings.push_back("4577");
-		}
-
-		projectWarnings["agi"].push_back("4510");
-		projectWarnings["agi"].push_back("4610");
-
-		projectWarnings["agos"].push_back("4511");
-
-		projectWarnings["dreamweb"].push_back("4355");
-
-		projectWarnings["lure"].push_back("4189");
-		projectWarnings["lure"].push_back("4355");
-
-		projectWarnings["kyra"].push_back("4355");
-		projectWarnings["kyra"].push_back("4510");
-		projectWarnings["kyra"].push_back("4610");
-
-		projectWarnings["m4"].push_back("4355");
-
-		projectWarnings["sci"].push_back("4373");
 
 		if (msvcVersion == 9)
-			provider = new CreateProjectTool::VisualStudioProvider(globalWarnings, projectWarnings, msvcVersion);
+			provider = new CreateProjectTool::VisualStudioProvider(msvcGlobalWarnings, msvcProjectWarnings, msvcVersion);
 		else
-			provider = new CreateProjectTool::MSBuildProvider(globalWarnings, projectWarnings, msvcVersion);
+			provider = new CreateProjectTool::MSBuildProvider(msvcGlobalWarnings, msvcProjectWarnings, msvcVersion);
 
 		break;
 
@@ -615,31 +492,7 @@ int main(int argc, char *argv[]) {
 			return -1;
 		}
 
-		////////////////////////////////////////////////////////////////////////////
-		// Xcode is also using GCC behind the scenes. See Code::Blocks comment
-		// for info on all warnings
-		////////////////////////////////////////////////////////////////////////////
-		globalWarnings.push_back("-Wall");
-		globalWarnings.push_back("-Wno-long-long");
-		globalWarnings.push_back("-Wno-multichar");
-		globalWarnings.push_back("-Wno-unknown-pragmas");
-		globalWarnings.push_back("-Wno-reorder");
-		globalWarnings.push_back("-Wpointer-arith");
-		globalWarnings.push_back("-Wcast-qual");
-		globalWarnings.push_back("-Wcast-align");
-		globalWarnings.push_back("-Wshadow");
-		globalWarnings.push_back("-Wimplicit");
-		globalWarnings.push_back("-Wnon-virtual-dtor");
-		globalWarnings.push_back("-Wwrite-strings");
-		// The following are not warnings at all... We should consider adding them to
-		// a different list of parameters.
-#if !NEEDS_RTTI
-		globalWarnings.push_back("-fno-rtti");
-#endif
-		globalWarnings.push_back("-fno-exceptions");
-		globalWarnings.push_back("-fcheck-new");
-
-		provider = new CreateProjectTool::XcodeProvider(globalWarnings, projectWarnings);
+		provider = new CreateProjectTool::XcodeProvider(gccGlobalWarnings, gccProjectWarnings);
 		break;
 	}
 
@@ -772,6 +625,133 @@ void addGCCWarnings(StringList &globalWarnings) {
 	// a different list of parameters.
 	globalWarnings.push_back("-fno-exceptions");
 	globalWarnings.push_back("-fcheck-new");
+}
+
+void addMSVCWarnings(StringList &globalWarnings, std::map<std::string, StringList> &projectWarnings, int msvcVersion) {
+	////////////////////////////////////////////////////////////////////////////
+	// For Visual Studio, all warnings are on by default in the project files,
+	// so we pass a list of warnings to disable globally or per-project
+	//
+	// Tracker reference:
+	// https://sourceforge.net/tracker/?func=detail&aid=2909981&group_id=37116&atid=418822
+	////////////////////////////////////////////////////////////////////////////
+	//
+	// 4068 (unknown pragma)
+	//   only used in scumm engine to mark code sections
+	//
+	// 4100 (unreferenced formal parameter)
+	//
+	// 4103 (alignment changed after including header, may be due to missing #pragma pack(pop))
+	//   used by pack-start / pack-end
+	//
+	// 4127 (conditional expression is constant)
+	//   used in a lot of engines
+	//
+	// 4244 ('conversion' conversion from 'type1' to 'type2', possible loss of data)
+	//   throws tons and tons of warnings, most of them false positives
+	//
+	// 4250 ('class1' : inherits 'class2::member' via dominance)
+	//   two or more members have the same name. Should be harmless
+	//
+	// 4267 ('var' : conversion from 'size_t' to 'type', possible loss of data)
+	//   throws tons and tons of warnings (no immediate plan to fix all usages)
+	//
+	// 4310 (cast truncates constant value)
+	//   used in some engines
+	//
+	// 4345 (behavior change: an object of POD type constructed with an
+	// initializer of the form () will be default-initialized)
+	//   used in Common::Array(), and it basically means that newer VS
+	//   versions adhere to the standard in this case. Can be safely
+	//   disabled.
+	//
+	// 4351 (new behavior: elements of array 'array' will be default initialized)
+	//   a change in behavior in Visual Studio 2005. We want the new behavior, so it can be disabled
+	//
+	// 4512 ('class' : assignment operator could not be generated)
+	//   some classes use const items and the default assignment operator cannot be generated
+	//
+	// 4577 ('noexcept' used with no exception handling mode specified)
+	//
+	// 4702 (unreachable code)
+	//   mostly thrown after error() calls (marked as NORETURN)
+	//
+	// 4706 (assignment within conditional expression)
+	//   used in a lot of engines
+	//
+	// 4800 ('type' : forcing value to bool 'true' or 'false' (performance warning))
+	//
+	// 4996 ('function': was declared deprecated)
+	//   disabling it removes all the non-standard unsafe functions warnings (strcpy_s, etc.)
+	//
+	// 6211 (Leaking memory <pointer> due to an exception. Consider using a local catch block to clean up memory)
+	//   we disable exceptions
+	//
+	// 6204 (possible buffer overrun in call to <function>: use of unchecked parameter <variable>)
+	// 6385 (invalid data: accessing <buffer name>, the readable size is <size1> bytes, but <size2> bytes may be read)
+	// 6386 (buffer overrun: accessing <buffer name>, the writable size is <size1> bytes, but <size2> bytes may be written)
+	//   give way too many false positives
+	//
+	////////////////////////////////////////////////////////////////////////////
+	//
+	// 4189 (local variable is initialized but not referenced)
+	//   false positive in lure engine
+	//
+	// 4355 ('this' : used in base member initializer list)
+	//   only disabled for specific engines where it is used in a safe way
+	//
+	// 4373 (previous versions of the compiler did not override when parameters only differed by const/volatile qualifiers)
+	//
+	// 4510 ('class' : default constructor could not be generated)
+	//
+	// 4511 ('class' : copy constructor could not be generated)
+	//
+	// 4610 (object 'class' can never be instantiated - user-defined constructor required)
+	//   "correct" but harmless (as is 4510)
+	//
+	////////////////////////////////////////////////////////////////////////////
+
+	globalWarnings.push_back("4068");
+	globalWarnings.push_back("4100");
+	globalWarnings.push_back("4103");
+	globalWarnings.push_back("4127");
+	globalWarnings.push_back("4244");
+	globalWarnings.push_back("4250");
+	globalWarnings.push_back("4310");
+	globalWarnings.push_back("4345");
+	globalWarnings.push_back("4351");
+	globalWarnings.push_back("4512");
+	globalWarnings.push_back("4702");
+	globalWarnings.push_back("4706");
+	globalWarnings.push_back("4800");
+	globalWarnings.push_back("4996");
+	globalWarnings.push_back("6204");
+	globalWarnings.push_back("6211");
+	globalWarnings.push_back("6385");
+	globalWarnings.push_back("6386");
+
+	if (msvcVersion == 14 || msvcVersion == 15) {
+		globalWarnings.push_back("4267");
+		globalWarnings.push_back("4577");
+	}
+
+	projectWarnings["agi"].push_back("4510");
+	projectWarnings["agi"].push_back("4610");
+
+	projectWarnings["agos"].push_back("4511");
+
+	projectWarnings["dreamweb"].push_back("4355");
+
+	projectWarnings["lure"].push_back("4189");
+	projectWarnings["lure"].push_back("4355");
+
+	projectWarnings["kyra"].push_back("4355");
+	projectWarnings["kyra"].push_back("4510");
+	projectWarnings["kyra"].push_back("4610");
+
+	projectWarnings["m4"].push_back("4355");
+
+	projectWarnings["sci"].push_back("4373");
 }
 
 /**
