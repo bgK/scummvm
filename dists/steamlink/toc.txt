@@ -1,0 +1,3 @@
+name=ScummVM
+icon=icon.png
+run=scummvm

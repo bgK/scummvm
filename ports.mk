@@ -488,5 +488,23 @@ raspberrypi_dist:
 	zip -r scummvm-rpi.zip scummvm-rpi
 	rm -f -R scummvm-rpi
 
+steamlinkdist: $(EXECUTABLE)
+	$(STRIP) $(EXECUTABLE)
+	mkdir -p steamlink/scummvm/data/
+	mkdir -p steamlink/scummvm/doc/
+	mkdir -p steamlink/scummvm/.home/.config/scummvm/
+	cp $(EXECUTABLE) steamlink/scummvm/scummvm
+	cp $(DIST_FILES_THEMES) steamlink/scummvm/data/
+ifdef DIST_FILES_ENGINEDATA
+	cp $(DIST_FILES_ENGINEDATA) steamlink/scummvm/data/
+endif
+	cp $(DIST_FILES_DOCS) steamlink/scummvm/doc/
+	cp $(srcdir)/backends/vkeybd/packs/vkeybd_default.zip steamlink/scummvm/data/
+	cp $(srcdir)/backends/vkeybd/packs/vkeybd_small.zip steamlink/scummvm/data/
+	cp $(srcdir)/dists/steamlink/icon.png steamlink/scummvm/
+	cp $(srcdir)/dists/steamlink/toc.txt steamlink/scummvm/
+	cp $(srcdir)/dists/steamlink/scummvm.ini steamlink/scummvm/.home/.config/scummvm/
+	tar czf scummvm.tgz -C steamlink scummvm
+
 # Mark special targets as phony
 .PHONY: deb bundle osxsnap install uninstall
