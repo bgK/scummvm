@@ -24,18 +24,18 @@
 	<palette>
 		<!-- Main background colors -->
 		<color name = 'darkorange'
-				rgb = '210, 114, 10'
+				rgb = '114, 155, 121'
 		/>
 		<color name = 'brightorange'
-				rgb = '239, 196, 24'
+				rgb = '71, 91, 99'
 		/>
 
 		<!-- Idle button/slider -->
 		<color name = 'darkred'
-				rgb = '169, 42, 12'
+				rgb = '44, 35, 28'
 		/>
 		<color name = 'brightred'
-				rgb = '203, 126, 107'
+				rgb = '88, 70, 56'
 		/>
 
 		<color name = 'brightredborder'
@@ -48,31 +48,31 @@
 
 		<!-- Disabled button/slider -->
 		<color name = 'darkeneddarkred'
-				rgb = '120, 28, 0'
+				rgb = '22, 18, 14'
 		/>
 		<color name = 'darkenedbrightred'
-				rgb = '144, 84, 72'
+				rgb = '44, 35, 28'
 		/>
 
 		<!-- Highlighted button/slider -->
 		<color name = 'brightpink'
-				rgb = '255, 210, 200'
+				rgb = '154, 122, 97'
 		/>
 		<color name = 'darkpink'
-				rgb = '200, 70, 50'
+				rgb = '88, 70, 56'
 		/>
 
 		<!-- Dialog background -->
 		<color name = 'xtrabrightred'
-				rgb = '251, 241, 206'
+				rgb = '243, 232, 238'
 		/>
 		<color name = 'blandyellow'
-				rgb = '248, 228, 152'
+				rgb = '186, 205, 176'
 		/>
 
 		<!-- Others -->
 		<color name = 'bgreen'
-				rgb = '100, 162, 8'
+				rgb = '165, 191, 169'
 		/>
 		<color name = 'black'
 				rgb = '0, 0, 0'
@@ -93,7 +93,7 @@
 				rgb = '231, 223, 189'
 		/>
 		<color name = 'paleyellow'
-				rgb = '247, 228, 166'
+				rgb = '210, 215, 200'
 		/>
 	</palette>
 
@@ -390,7 +390,7 @@
 					radius = '4'
 					stroke = '0'
 					fill = 'background'
-					bg_color = '248, 232, 168'
+					bg_color = '213, 218, 205'
 					shadow = '3'
 		/>
 	</drawdata>
@@ -406,7 +406,7 @@
 					radius = '4'
 					stroke = '0'
 					fill = 'background'
-					bg_color = '239, 202, 109'
+					bg_color = '170, 187, 160'
 					shadow = '3'
 		/>
 	</drawdata>
@@ -417,7 +417,7 @@
 					radius = '6'
 					stroke = '0'
 					fill = 'foreground'
-					fg_color = '232, 180, 80'
+					fg_color = '136, 150, 129'
 					shadow = '3'
 		/>
 	</drawdata>
@@ -775,7 +775,7 @@
 					fill = 'foreground'
 					shadow = '0'
 					factor = '0'
-					fg_color = '120, 40, 16'
+					fg_color = '132, 98, 83'
 					gradient_start = '255, 0, 0'
 					gradient_end = '255, 0, 0'
 					bevel = '1'
