@@ -230,6 +230,108 @@ static const MohawkGameDescription gameDescriptions[] = {
 		0,
 	},
 
+	// Myst
+	// French - Repacked by the ScummVM team for inclusion in the 25th anniversary collection
+	{
+		{
+			"myst",
+			"",
+			AD_ENTRY1("myst_french.dat", "01157e1bce85c3845a37ba9149d53283"),
+			Common::FR_FRA,
+			Common::kPlatformWindows,
+			ADGF_NO_FLAGS,
+			GUI_OPTIONS_MYST
+		},
+		GType_MYST,
+		GF_LANGUAGE_FILES,
+		0,
+	},
+
+	// Myst
+	// German - Repacked by the ScummVM team for inclusion in the 25th anniversary collection
+	{
+		{
+			"myst",
+			"",
+			AD_ENTRY1("myst_german.dat", "fde1c256a8c55b00547b973bda61d0df"),
+			Common::DE_DEU,
+			Common::kPlatformWindows,
+			ADGF_NO_FLAGS,
+			GUI_OPTIONS_MYST
+		},
+		GType_MYST,
+		GF_LANGUAGE_FILES,
+		0,
+	},
+
+	// Myst
+	// Italian - Repacked by the ScummVM team for inclusion in the 25th anniversary collection
+	{
+		{
+			"myst",
+			"",
+			AD_ENTRY1("myst_italian.dat", "ab47686137e86826203629a976d2c174"),
+			Common::IT_ITA,
+			Common::kPlatformWindows,
+			ADGF_NO_FLAGS,
+			GUI_OPTIONS_MYST
+		},
+		GType_MYST,
+		GF_LANGUAGE_FILES,
+		0,
+	},
+
+	// Myst
+	// Japanese - Repacked by the ScummVM team for inclusion in the 25th anniversary collection
+	{
+		{
+			"myst",
+			"",
+			AD_ENTRY1("myst_japanese.dat", "3f338c4d684f30a732b6621b4dfa4d03"),
+			Common::JA_JPN,
+			Common::kPlatformWindows,
+			ADGF_NO_FLAGS,
+			GUI_OPTIONS_MYST
+		},
+		GType_MYST,
+		GF_LANGUAGE_FILES,
+		0,
+	},
+
+	// Myst
+	// Russian - Repacked by the ScummVM team for inclusion in the 25th anniversary collection
+	{
+		{
+			"myst",
+			"",
+			AD_ENTRY1("myst_russian.dat", "0c4edee874eab09cf6e7350d04af5efa"),
+			Common::RU_RUS,
+			Common::kPlatformWindows,
+			ADGF_NO_FLAGS,
+			GUI_OPTIONS_MYST
+		},
+		GType_MYST,
+		GF_LANGUAGE_FILES,
+		0,
+	},
+
+	// Myst
+	// Spanish - Repacked by the ScummVM team for inclusion in the 25th anniversary collection
+	{
+		{
+			"myst",
+			"",
+			AD_ENTRY1("myst_spanish.dat", "ffd4fb5e859b38c232cb102c108f831a"),
+			Common::ES_ESP,
+			Common::kPlatformWindows,
+			ADGF_NO_FLAGS,
+			GUI_OPTIONS_MYST
+		},
+		GType_MYST,
+		GF_LANGUAGE_FILES,
+		0,
+	},
+
 	// Making of Myst
 	// English Windows 3.11
 	// From clone2727
