@@ -101,6 +101,7 @@ public:
 
 	void				loadDefaultConfigFile();
 	void				loadConfigFile(const String &filename);
+	void				loadOverrideFile(const String &filename);
 
 	/**
 	 * Retrieve the config domain with the given name.
@@ -178,6 +179,7 @@ private:
 	friend class Singleton<SingletonBaseType>;
 	ConfigManager();
 
+	void			clear();
 	void			loadFromStream(SeekableReadStream &stream);
 	void			addDomain(const String &domainName, const Domain &domain);
 	void			writeDomain(WriteStream &stream, const String &name, const Domain &domain);

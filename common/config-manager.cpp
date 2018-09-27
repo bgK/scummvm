@@ -86,6 +86,7 @@ void ConfigManager::loadDefaultConfigFile() {
 	assert(g_system);
 	SeekableReadStream *stream = g_system->createConfigReadStream();
 	_filename.clear(); // clear the filename to indicate that we are using the default config file
+	clear();
 
 	// ... load it, if available ...
 	if (stream) {
@@ -104,6 +105,7 @@ void ConfigManager::loadDefaultConfigFile() {
 
 void ConfigManager::loadConfigFile(const String &filename) {
 	_filename = filename;
+	clear();
 
 	FSNode node(filename);
 	File cfg_file;
@@ -111,6 +113,14 @@ void ConfigManager::loadConfigFile(const String &filename) {
 		debug("Creating configuration file: %s", filename.c_str());
 	} else {
 		debug("Using configuration file: %s", _filename.c_str());
+		loadFromStream(cfg_file);
+	}
+}
+
+void ConfigManager::loadOverrideFile(const String &filename) {
+	File cfg_file;
+	if (cfg_file.open(filename)) {
+		debug("Using override configuration file: %s", filename.c_str());
 		loadFromStream(cfg_file);
 	}
 }
@@ -155,13 +165,7 @@ void ConfigManager::addDomain(const String &domainName, const ConfigManager::Dom
 	}
 }
 
-
-void ConfigManager::loadFromStream(SeekableReadStream &stream) {
-	String domainName;
-	String comment;
-	Domain domain;
-	int lineno = 0;
-
+void ConfigManager::clear() {
 	_appDomain.clear();
 	_gameDomains.clear();
 	_miscDomains.clear();
@@ -174,6 +178,13 @@ void ConfigManager::loadFromStream(SeekableReadStream &stream) {
 #ifdef USE_CLOUD
 	_cloudDomain.clear();
 #endif
+}
+
+void ConfigManager::loadFromStream(SeekableReadStream &stream) {
+	String domainName;
+	String comment;
+	Domain *domain = nullptr;
+	int lineno = 0;
 
 	// TODO: Detect if a domain occurs multiple times (or likewise, if
 	// a key occurs multiple times inside one domain).
@@ -195,8 +206,9 @@ void ConfigManager::loadFromStream(SeekableReadStream &stream) {
 		} else if (line[0] == '[') {
 			// It's a new domain which begins here.
 			// Determine where the previously accumulated domain goes, if we accumulated anything.
-			addDomain(domainName, domain);
-			domain.clear();
+			if (domain && !getDomain(domainName)) {
+				addDomain(domainName, *domain);
+			}
 			const char *p = line.c_str() + 1;
 			// Get the domain name, and check whether it's valid (that
 			// is, verify that it only consists of alphanumerics,
@@ -211,8 +223,15 @@ void ConfigManager::loadFromStream(SeekableReadStream &stream) {
 
 			domainName = String(line.c_str() + 1, p);
 
-			domain.setDomainComment(comment);
-			comment.clear();
+			domain = getDomain(domainName);
+			if (!domain) {
+				domain = new Domain();
+			}
+
+			if (!comment.empty()) {
+				domain->setDomainComment(comment);
+				comment.clear();
+			}
 
 		} else {
 			// This line should be a line with a 'key=value' pair, or an empty one.
@@ -230,6 +249,7 @@ void ConfigManager::loadFromStream(SeekableReadStream &stream) {
 			if (domainName.empty()) {
 				error("Config file buggy: Key/value pair found outside a domain in line %d", lineno);
 			}
+			assert(domain);
 
 			// Split string at '=' into 'key' and 'value'. First, find the "=" delimeter.
 			const char *p = strchr(t, '=');
@@ -245,15 +265,19 @@ void ConfigManager::loadFromStream(SeekableReadStream &stream) {
 			value.trim();
 
 			// Finally, store the key/value pair in the active domain
-			domain[key] = value;
+			(*domain)[key] = value;
 
 			// Store comment
-			domain.setKVComment(key, comment);
-			comment.clear();
+			if (!comment.empty()) {
+				domain->setKVComment(key, comment);
+				comment.clear();
+			}
 		}
 	}
 
-	addDomain(domainName, domain); // Add the last domain found
+	if (domain && !getDomain(domainName)) {
+		addDomain(domainName, *domain); // Add the last domain found
+	}
 }
 
 void ConfigManager::flushToDisk() {
