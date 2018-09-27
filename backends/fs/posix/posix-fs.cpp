@@ -22,15 +22,7 @@
 
 #if defined(POSIX) || defined(PLAYSTATION3) || defined(PSP2)
 
-// Re-enable some forbidden symbols to avoid clashes with stat.h and unistd.h.
-// Also with clock() in sys/time.h in some Mac OS X SDKs.
-#define FORBIDDEN_SYMBOL_EXCEPTION_time_h
-#define FORBIDDEN_SYMBOL_EXCEPTION_unistd_h
-#define FORBIDDEN_SYMBOL_EXCEPTION_mkdir
-#define FORBIDDEN_SYMBOL_EXCEPTION_getenv
-#define FORBIDDEN_SYMBOL_EXCEPTION_exit		//Needed for IRIX's unistd.h
-#define FORBIDDEN_SYMBOL_EXCEPTION_random
-#define FORBIDDEN_SYMBOL_EXCEPTION_srandom
+#define FORBIDDEN_SYMBOL_ALLOW_ALL
 
 #include "backends/fs/posix/posix-fs.h"
 #include "backends/fs/stdiostream.h"
@@ -53,6 +45,9 @@
 #include <os2.h>
 #endif
 
+#ifdef MACOSX
+#include "CoreFoundation/CoreFoundation.h"	// for CF* stuff
+#endif
 
 void POSIXFilesystemNode::setFlags() {
 	struct stat st;
@@ -72,6 +67,26 @@ POSIXFilesystemNode::POSIXFilesystemNode(const Common::String &p) {
 		_displayName = p;
 		return;
 	}
+#endif
+
+#ifdef MACOSX
+	if (p.hasPrefix("bundle:")) {
+		// Get URL of the Resource directory of the .app bundle
+		CFURLRef fileUrl = CFBundleCopyResourcesDirectoryURL(CFBundleGetMainBundle());
+		if (fileUrl) {
+			// Try to convert the URL to an absolute path
+			UInt8 buf[MAXPATHLEN];
+			if (CFURLGetFileSystemRepresentation(fileUrl, true, buf, sizeof(buf))) {
+				// Success: Add it to the search path
+				Common::String bundlePath((const char *)buf);
+
+				_path = bundlePath;
+				_path += p.c_str() + 7;
+			}
+			CFRelease(fileUrl);
+		}
+
+	} else
 #endif
 
 	// Expand "~/" to the value of the HOME env variable
