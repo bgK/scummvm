@@ -331,6 +331,8 @@ protected:
 
 	/** Convert an AD game description into the shared game description format */
 	DetectedGame toDetectedGame(const ADDetectedGame &adGame) const;
+
+	ADDetectedGames removeOtherLanguages(const ADDetectedGames &games, Common::Language language) const;
 };
 
 #endif
