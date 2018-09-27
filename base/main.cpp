@@ -420,6 +420,9 @@ extern "C" int scummvm_main(int argc, const char * const argv[]) {
 	if (settings.contains("debug-channels-only"))
 		gDebugChannelsOnly = true;
 
+	if (command.empty() && ConfMan.hasKey("auto_start_target")) {
+		command = ConfMan.get("auto_start_target");
+	}
 
 	PluginManager::instance().init();
  	PluginManager::instance().loadAllPlugins(); // load plugins for cached plugin manager
